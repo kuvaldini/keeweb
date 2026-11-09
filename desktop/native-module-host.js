@@ -5,6 +5,7 @@ const YubiKeyVendorIds = [0x1050];
 const attachedYubiKeys = [];
 let usbListenerRunning = false;
 let usbListenerInitialized = false;
+let usbListenerFailed = false;
 let autoType;
 let callback;
 
@@ -12,24 +13,30 @@ const messageHandlers = {
     start() {},
 
     startUsbListener() {
-        if (usbListenerRunning) {
+        if (usbListenerRunning || usbListenerFailed) {
             return;
         }
 
-        if (!usbListenerInitialized) {
-            const usbDetection = reqNative('usb-detection');
+        try {
+            if (!usbListenerInitialized) {
+                const usbDetection = reqNative('usb-detection');
 
-            usbDetection.registerAdded(usbDeviceAttached);
-            usbDetection.registerRemoved(usbDeviceDetached);
+                usbDetection.registerAdded(usbDeviceAttached);
+                usbDetection.registerRemoved(usbDeviceDetached);
 
-            usbDetection.startMonitoring();
+                usbDetection.startMonitoring();
 
-            usbListenerInitialized = true;
+                usbListenerInitialized = true;
+            }
+
+            fillAttachedYubiKeys();
+
+            usbListenerRunning = true;
+        } catch (e) {
+            // The usb-detection native module is not available in this Electron build
+            usbListenerFailed = true;
+            usbListenerRunning = false;
         }
-
-        fillAttachedYubiKeys();
-
-        usbListenerRunning = true;
     },
 
     stopUsbListener() {

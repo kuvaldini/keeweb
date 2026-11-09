@@ -140,10 +140,21 @@ class StorageBase {
     }
 
     _httpRequestLauncher(config, onLoad) {
-        Launcher.remoteApp().httpRequest(
-            config,
-            (level, ...args) => this.logger[level](...args),
-            ({ status, response, headers }) => {
+        const requestConfig = {
+            url: config.url,
+            method: config.method,
+            headers: config.headers,
+            data: config.data,
+            dataType: config.dataType,
+            dataIsMultipart: config.dataIsMultipart,
+            responseType: config.responseType
+        };
+        Launcher.httpRequest(requestConfig)
+            .then((res) => {
+                if (res.error) {
+                    return config.error && config.error(res.error, {});
+                }
+                let { status, response, headers } = res;
                 response = Buffer.from(response, 'hex');
                 if (config.responseType === 'json') {
                     try {
@@ -162,8 +173,10 @@ class StorageBase {
                     response,
                     getResponseHeader: (name) => headers[name.toLowerCase()]
                 });
-            }
-        );
+            })
+            .catch(() => {
+                return config.error && config.error('network error', {});
+            });
     }
 
     _openPopup(url, title, width, height, extras) {

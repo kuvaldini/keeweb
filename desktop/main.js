@@ -50,7 +50,13 @@ setUserDataPaths();
 let openFile = process.argv.filter((arg) => /\.kdbx$/i.test(arg))[0];
 
 const htmlPath =
-    (isDev && process.env.KEEWEB_HTML_PATH) ||
+    (isDev &&
+        (process.env.KEEWEB_HTML_PATH ||
+            url.format({
+                protocol: 'file',
+                slashes: true,
+                pathname: path.join(__dirname, '..', 'dist', 'index.html')
+            }))) ||
     url.format({ protocol: 'file', slashes: true, pathname: path.join(__dirname, 'index.html') });
 
 const showDevToolsOnStart =
@@ -298,7 +304,6 @@ function createMainWindow() {
             backgroundThrottling: false,
             nodeIntegration: true,
             nodeIntegrationInWorker: true,
-            enableRemoteModule: true,
             spellcheck: false,
             v8CacheOptions: 'none'
         }
@@ -331,7 +336,6 @@ function createMainWindow() {
     mainWindow.on('move', delaySaveMainWindowPosition);
     mainWindow.on('restore', coerceMainWindowPositionToConnectedDisplay);
     mainWindow.on('close', mainWindowClosing);
-    mainWindow.on('closed', mainWindowClosed);
     mainWindow.on('focus', mainWindowFocus);
     mainWindow.on('blur', mainWindowBlur);
     mainWindow.on('closed', () => {
@@ -487,13 +491,9 @@ function mainWindowClosing() {
     updateMainWindowPositionIfPending();
 }
 
-function mainWindowClosed() {
-    main.removeAllListeners('remote-app-event');
-}
-
 function emitRemoteEvent(e, arg) {
     if (mainWindow && mainWindow.webContents) {
-        main.emit('remote-app-event', {
+        mainWindow.webContents.send('remote-app-event', {
             name: e,
             data: arg
         });
